@@ -164,7 +164,8 @@ with st.sidebar:
     3. Recibirás el análisis completo
 
     ### ⚠️ Advertencia
-    **SOLO PARA NIÑOS DE 4 a 10 AÑOS**
+    **SOLO PARA NIÑOS DE 4 a 10 AÑOS**.
+    
     Sistema de **apoyo diagnóstico**. Consulte profesionales médicos.
     """)
 
