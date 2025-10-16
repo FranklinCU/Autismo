@@ -165,7 +165,7 @@ with st.sidebar:
     3. Recibirás el análisis completo
 
     ### ⚠️ Advertencia
-
+    **SOLO PARA NIÑOS DE 4 a 10 AÑOS**
     Sistema de **apoyo diagnóstico**. Consulte profesionales médicos.
     """)
 
@@ -464,8 +464,8 @@ def mostrar_resultados(img_bgr, resultado):
         """)
 
 # Interfaz
-st.markdown('<h1 class="titulo-principal">🧠 Detector de Autismo</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitulo">Análisis facial con CNN + MediaPipe + 29 Características</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="titulo-principal">🧠 Detector de Autismo en Edades Tempranas</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subtitulo">Análisis facial con CNN y MEDIAPIPE</p>', unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["📷 Capturar Foto", "📁 Subir Imagen"])
 
@@ -510,8 +510,7 @@ with tab2:
 # Footer
 st.markdown("---")
 footer_html = '''<div style="text-align: center; color: #999; font-size: 0.9rem; padding: 2rem 0;">
-    <p style="margin-bottom: 0.5rem;"><strong>Sistema de Análisis Facial con CNN + MediaPipe</strong></p>
-    <p style="font-size: 0.8rem; color: #bbb;">Versión 1.0</p>
+    <p style="margin-bottom: 0.5rem;"><strong>Sistema de Análisis Facial con CNN y MediaPipe</strong></p>
     <p style="font-size: 0.75rem; color: #E07A5F; margin-top: 1rem;">
         ⚠️ <strong>IMPORTANTE:</strong> Herramienta de apoyo diagnóstico. 
         Consulte profesionales médicos certificados.
