@@ -1,6 +1,5 @@
 # app_streamlit.py
-# DETECTOR DE AUTISMO - MODELO HÍBRIDO AVANZADO
-# CNN + MediaPipe + 29 Características Geométricas
+# Detector de autismo
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -10,8 +9,6 @@ import streamlit as st
 import cv2
 import numpy as np
 from PIL import Image
-from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
-import av
 import threading
 import time
 import mediapipe as mp
@@ -20,9 +17,9 @@ import joblib
 import tensorflow as tf
 from tensorflow import keras
 
-# ════════════════════════════════════════════════════════════════
+# Sección
 # CONFIGURACIÓN
-# ════════════════════════════════════════════════════════════════
+# Sección
 
 st.set_page_config(
     page_title="ASD Detector Pro",
@@ -109,9 +106,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ════════════════════════════════════════════════════════════════
+# Sección
 # CARGAR SISTEMA
-# ════════════════════════════════════════════════════════════════
+# Sección
 
 @st.cache_resource(show_spinner=False)
 def cargar_sistema():
@@ -189,9 +186,9 @@ except Exception as e:
     """)
     st.stop()
 
-# ════════════════════════════════════════════════════════════════
-# FUNCIONES DE EXTRACCIÓN (EXACTAS DEL ENTRENAMIENTO)
-# ════════════════════════════════════════════════════════════════
+# Sección
+# Funciones de extracción
+# Sección
 
 def calcular_distancia(p1, p2):
     """Distancia euclidiana"""
@@ -208,7 +205,6 @@ def calcular_angulo(p1, p2, p3):
 def extraer_caracteristicas_faciales(imagen, face_mesh):
     """
     Extrae 29 características geométricas usando MediaPipe
-    IDÉNTICO al código de entrenamiento
     """
     
     # Convertir a RGB
@@ -394,337 +390,7 @@ def predecir_con_modelo_hibrido(imagen, detector, face_mesh, modelo, scaler):
     
     return img_resultado, rostro_zoom, prediccion, confianza, pred, caracteristicas
 
-# ════════════════════════════════════════════════════════════════
+# Sección
 # CLASE VIDEO PROCESSOR
-# ════════════════════════════════════════════════════════════════
+# Sección
 
-class VideoProcessorOptimizado(VideoProcessorBase):
-    def __init__(self):
-        self.detector = detector
-        self.face_mesh = face_mesh
-        self.modelo = modelo
-        self.scaler = scaler
-        
-        self.lock = threading.Lock()
-        self.prediccion = None
-        self.confianza = 0
-        self.score = 0
-        self.bbox = None
-        self.caracteristicas = None
-        
-        self.frame_count = 0
-        self.fps = 0
-        self.last_time = time.time()
-        
-        self.PROCESS_EVERY = 15  # Procesar cada 15 frames
-    
-    def recv(self, frame):
-        img = frame.to_ndarray(format="bgr24")
-        
-        self.frame_count += 1
-        
-        # Calcular FPS
-        current_time = time.time()
-        if current_time - self.last_time >= 1.0:
-            self.fps = self.frame_count
-            self.frame_count = 0
-            self.last_time = current_time
-        
-        # Procesar cada N frames
-        if self.frame_count % self.PROCESS_EVERY == 0:
-            resultado = predecir_con_modelo_hibrido(img, self.detector, self.face_mesh, self.modelo, self.scaler)
-            
-            with self.lock:
-                if resultado[0] is not None:
-                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                    rostros = self.detector.detectMultiScale(gray, 1.2, 4, minSize=(80, 80))
-                    if len(rostros) > 0:
-                        self.bbox = sorted(rostros, key=lambda r: r[2] * r[3], reverse=True)[0]
-                        self.prediccion = resultado[2]
-                        self.confianza = resultado[3]
-                        self.score = resultado[4]
-                        self.caracteristicas = resultado[5]
-        
-        # Dibujar resultado
-        with self.lock:
-            if self.bbox is not None and self.prediccion is not None:
-                x, y, w, h = self.bbox
-                color = (0, 0, 255) if self.prediccion == "AUTISTA" else (0, 255, 0)
-                
-                cv2.rectangle(img, (x, y), (x+w, y+h), color, 3)
-                cv2.rectangle(img, (x, y-50), (x+w, y), color, -1)
-                cv2.putText(img, self.prediccion, (x+5, y-30),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-                cv2.putText(img, f"{self.confianza:.0%}", (x+5, y-8),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-            else:
-                cv2.putText(img, "Analizando...", (10, 30),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-        
-        cv2.putText(img, f"FPS: {self.fps}", (img.shape[1]-100, 30),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        
-        return av.VideoFrame.from_ndarray(img, format="bgr24")
-    
-    def get_resultado(self):
-        with self.lock:
-            return self.prediccion, self.confianza, self.score, self.caracteristicas
-
-# ════════════════════════════════════════════════════════════════
-# INTERFAZ
-# ════════════════════════════════════════════════════════════════
-
-st.markdown('<h1 class="main-title">🧠 ASD Detector Pro</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Análisis Avanzado con CNN + MediaPipe + 29 Features</p>', unsafe_allow_html=True)
-st.markdown("---")
-
-tab1, tab2, tab3 = st.tabs(["📹 Tiempo Real", "📷 Capturar Foto", "📁 Subir Imagen"])
-
-# ═══════════════════════ TAB 1: TIEMPO REAL ═══════════════════════
-
-with tab1:
-    st.markdown("### 📹 Detección en Tiempo Real")
-    st.info("💡 Análisis continuo cada 0.5 seg con extracción de 29 características faciales")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown('<div class="card-2d">', unsafe_allow_html=True)
-        
-        webrtc_ctx = webrtc_streamer(
-            key="video-hibrido",
-            video_processor_factory=VideoProcessorOptimizado,
-            rtc_configuration=RTCConfiguration(
-                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-            ),
-            media_stream_constraints={"video": {"width": 640, "height": 480}, "audio": False},
-            async_processing=True,
-        )
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<div class="card-2d">', unsafe_allow_html=True)
-        st.markdown("#### 📊 Resultado")
-        
-        if webrtc_ctx.video_processor:
-            pred, conf, score, caract = webrtc_ctx.video_processor.get_resultado()
-            
-            if pred:
-                badge = "badge-autista" if pred == "AUTISTA" else "badge-no-autista"
-                emoji = "⚠️" if pred == "AUTISTA" else "✅"
-                st.markdown(f'<h3><span class="badge {badge}">{emoji} {pred}</span></h3>', unsafe_allow_html=True)
-                st.metric("Confianza", f"{conf:.1%}")
-                st.progress(float(score), text=f"🔴 Autista: {score:.1%}")
-                st.progress(float(1-score), text=f"🟢 No Autista: {(1-score):.1%}")
-                
-                if caract:
-                    with st.expander("🔬 Ver 29 Características"):
-                        for key, val in list(caract.items())[:10]:
-                            st.text(f"{key}: {val:.2f}")
-            else:
-                st.info("⏳ Esperando detección...")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# ═══════════════════════ TAB 2: CAPTURAR ═══════════════════════
-
-with tab2:
-    st.markdown("### 📷 Captura Instantánea con Análisis Detallado")
-    
-    foto = st.camera_input("Toma tu foto")
-    
-    if foto:
-        img = np.array(Image.open(foto))
-        if img.shape[-1] == 4:
-            img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
-        img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        
-        with st.spinner("🧠 Analizando con modelo híbrido..."):
-            resultado = predecir_con_modelo_hibrido(img_bgr, detector, face_mesh, modelo, scaler)
-        
-        if resultado[0] is not None:
-            img_res, zoom, pred, conf, score, caract = resultado
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown("**1️⃣ Original**")
-                st.image(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB))
-            
-            with col2:
-                st.markdown("**2️⃣ Rostro Detectado**")
-                st.image(cv2.cvtColor(zoom, cv2.COLOR_BGR2RGB))
-            
-            with col3:
-                st.markdown("**3️⃣ Resultado**")
-                st.image(cv2.cvtColor(img_res, cv2.COLOR_BGR2RGB))
-            
-            st.markdown("---")
-            
-            col_r1, col_r2 = st.columns(2)
-            
-            with col_r1:
-                badge = "badge-autista" if pred == "AUTISTA" else "badge-no-autista"
-                emoji = "⚠️" if pred == "AUTISTA" else "✅"
-                st.markdown(f'<h1><span class="badge {badge}">{emoji} {pred}</span></h1>', unsafe_allow_html=True)
-                st.metric("Confianza", f"{conf:.1%}")
-                st.metric("Test AUC", "86.86%")
-                st.metric("Recall", "89.39%")
-            
-            with col_r2:
-                st.markdown("**📊 Probabilidades**")
-                st.metric("🔴 Autista", f"{score:.1%}")
-                st.progress(float(score))
-                st.metric("🟢 No Autista", f"{(1-score):.1%}")
-                st.progress(float(1-score))
-            
-            with st.expander("🔬 Ver 29 Características Geométricas Extraídas"):
-                col_a, col_b = st.columns(2)
-                items = list(caract.items())
-                mid = len(items) // 2
-                
-                with col_a:
-                    for key, val in items[:mid]:
-                        st.text(f"• {key}: {val:.2f}")
-                
-                with col_b:
-                    for key, val in items[mid:]:
-                        st.text(f"• {key}: {val:.2f}")
-        else:
-            st.error("❌ No se detectó rostro frontal en la imagen")
-
-# ═══════════════════════ TAB 3: SUBIR ═══════════════════════
-
-with tab3:
-    st.markdown("### 📁 Análisis de Imagen Existente")
-    st.info("💡 Soporta imágenes hasta 4K. Procesamiento automático.")
-    
-    archivo = st.file_uploader("Selecciona una imagen", type=['jpg', 'jpeg', 'png'])
-    
-    if archivo:
-        img = np.array(Image.open(archivo))
-        st.caption(f"📐 Resolución: {img.shape[1]}x{img.shape[0]} px")
-        
-        if img.shape[-1] == 4:
-            img = cv2.cvtColor(img, cv2.COLOR_RGBA2RGB)
-        img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        
-        with st.spinner("🧠 Analizando..."):
-            resultado = predecir_con_modelo_hibrido(img_bgr, detector, face_mesh, modelo, scaler)
-        
-        if resultado[0] is not None:
-            img_res, zoom, pred, conf, score, caract = resultado
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown("**Original**")
-                st.image(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB))
-            
-            with col2:
-                st.markdown("**Rostro**")
-                st.image(cv2.cvtColor(zoom, cv2.COLOR_BGR2RGB))
-            
-            with col3:
-                st.markdown("**Resultado**")
-                st.image(cv2.cvtColor(img_res, cv2.COLOR_BGR2RGB))
-            
-            col_r1, col_r2 = st.columns(2)
-            
-            with col_r1:
-                badge = "badge-autista" if pred == "AUTISTA" else "badge-no-autista"
-                emoji = "⚠️" if pred == "AUTISTA" else "✅"
-                st.markdown(f'<h1><span class="badge {badge}">{emoji} {pred}</span></h1>', unsafe_allow_html=True)
-                st.metric("Confianza", f"{conf:.1%}")
-            
-            with col_r2:
-                st.markdown("**Probabilidades**")
-                st.metric("🔴 Autista", f"{score:.1%}")
-                st.progress(float(score))
-                st.metric("🟢 No Autista", f"{(1-score):.1%}")
-                st.progress(float(1-score))
-            
-            with st.expander("🔬 Características Extraídas"):
-                col_a, col_b = st.columns(2)
-                items = list(caract.items())
-                mid = len(items) // 2
-                
-                with col_a:
-                    for key, val in items[:mid]:
-                        st.text(f"• {key}: {val:.2f}")
-                
-                with col_b:
-                    for key, val in items[mid:]:
-                        st.text(f"• {key}: {val:.2f}")
-        else:
-            st.error("❌ No se detectó rostro")
-
-# ═══════════════════════ FOOTER ═══════════════════════
-
-st.markdown("---")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    with st.expander("ℹ️ Tecnología"):
-        st.markdown("""
-        **Modelo Híbrido Avanzado:**
-        - CNN (MobileNetV2) para análisis visual
-        - MediaPipe Face Mesh (468 landmarks 3D)
-        - 29 características geométricas extraídas
-        - StandardScaler para normalización
-        
-        **Métricas de Rendimiento:**
-        - Test AUC: 86.86%
-        - Test Accuracy: 81.92%
-        - Recall: 89.39% (detecta 9 de cada 10)
-        - Precision: 85.21%
-        
-        **Stack Tecnológico:**
-        - TensorFlow 2.17 + Keras
-        - MediaPipe 0.10
-        - OpenCV 4.10
-        - Streamlit WebRTC
-        """)
-
-with col2:
-    with st.expander("⚠️ Advertencia Médica"):
-        st.warning("""
-        **Sistema de Apoyo Diagnóstico**
-        
-        Este sistema tiene 86.86% de precisión y detecta
-        89% de casos reales (recall).
-        
-        **NO reemplaza:**
-        - Evaluación médica profesional
-        - Diagnóstico clínico completo
-        - Valoración comportamental
-        
-        **Limitaciones:**
-        - 1 de cada 10 errores (AUC 86.86%)
-        - Solo analiza características faciales
-        - No detecta niveles de severidad
-        
-        **Consulte siempre con:**
-        - Psicólogos especializados en TEA
-        - Neurólogos pediatras
-        - Equipos multidisciplinarios
-        
-        Este sistema es para screening inicial,
-        NO para diagnóstico definitivo.
-        """)
-
-st.markdown("""
-<div style="text-align: center; padding: 2rem; background: white; border-radius: 20px; 
-     box-shadow: 8px 8px 0px rgba(212, 165, 116, 0.2); border: 2px solid #E8D5C4;">
-    <h3 style="color: #D4A574;">🧠 ASD Detector Pro</h3>
-    <p style="color: #8B7355;">Sistema Híbrido de Análisis Facial Avanzado</p>
-    <p style="font-size: 0.85rem;">
-        TensorFlow • MediaPipe • OpenCV • WebRTC • Streamlit
-    </p>
-    <p style="color: #999; font-size: 0.75rem;">
-        AUC: 86.86% | Recall: 89.39% | v2.0 - 2025
-    </p>
-</div>
-""", unsafe_allow_html=True)
