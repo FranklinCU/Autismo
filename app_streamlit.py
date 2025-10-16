@@ -156,7 +156,6 @@ with st.sidebar:
 
     - **CNN**: Red neuronal convolucional
     - **MediaPipe**: Detección de 468 puntos
-    - **29 características**: Geometría facial
 
     ### 📋 Instrucciones
 
@@ -407,7 +406,7 @@ def mostrar_resultados(img_bgr, resultado):
         st.markdown(info_html, unsafe_allow_html=True)
 
         # Características
-        with st.expander("🔍 Ver características extraídas (29 total)"):
+        with st.expander("🔍 Ver características extraídas"):
             st.markdown("#### 📐 Características Geométricas")
 
             distancias = {k: v for k, v in caract.items() if 'distancia' in k or 'ancho' in k or 'altura' in k or 'area' in k}
